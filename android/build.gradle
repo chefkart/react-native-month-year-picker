@@ -1,5 +1,4 @@
 // android/build.gradle
-
 // based on:
 //
 // * https://github.com/facebook/react-native/blob/0.60-stable/template/android/build.gradle
@@ -9,19 +8,14 @@
 // * https://github.com/facebook/react-native/blob/0.60-stable/template/android/app/build.gradle
 //   original location:
 //   - https://github.com/facebook/react-native/blob/0.58-stable/local-cli/templates/HelloWorld/android/app/build.gradle
-
-def DEFAULT_COMPILE_SDK_VERSION = 29
+def DEFAULT_COMPILE_SDK_VERSION = 30
 def DEFAULT_BUILD_TOOLS_VERSION = '29.0.3'
 def DEFAULT_MIN_SDK_VERSION = 21
-def DEFAULT_TARGET_SDK_VERSION = 29
-def DEFAULT_NDK_VERSION = '20.1.5948944'
-
+def DEFAULT_TARGET_SDK_VERSION = 30
+def DEFAULT_NDK_VERSION = '21.4.7075529'
 def safeExtGet(prop, fallback) {
     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
 }
-
-apply plugin: 'com.android.library'
-apply plugin: 'maven'
 
 buildscript {
     // The Android Gradle plugin is only required when opening the android folder stand-alone.
@@ -34,32 +28,26 @@ buildscript {
             jcenter()
         }
         dependencies {
-            classpath 'com.android.tools.build:gradle:4.1.0'
+            classpath 'com.android.tools.build:gradle:4.2.2'
         }
     }
 }
 
 apply plugin: 'com.android.library'
-apply plugin: 'maven'
 
 android {
     compileSdkVersion safeExtGet('compileSdkVersion', DEFAULT_COMPILE_SDK_VERSION)
-    buildToolsVersion safeExtGet('buildToolsVersion', DEFAULT_BUILD_TOOLS_VERSION)
     defaultConfig {
         ndkVersion safeExtGet('ndkVersion', DEFAULT_NDK_VERSION)
-        minSdkVersion safeExtGet('minSdkVersion', DEFAULT_MIN_SDK_VERSION)
         targetSdkVersion safeExtGet('targetSdkVersion', DEFAULT_TARGET_SDK_VERSION)
         versionCode 1
         versionName "1.0"
     }
-    lintOptions {
-        abortOnError false
-    }
 }
-
 repositories {
     // ref: https://www.baeldung.com/maven-local-repository
     mavenLocal()
+    mavenCentral()
     maven {
         // All of React Native (JS, Obj-C sources, Android binaries) is installed from npm
         url "$rootDir/../node_modules/react-native/android"
@@ -71,15 +59,12 @@ repositories {
     google()
     jcenter()
 }
-
 dependencies {
     //noinspection GradleDynamicVersion
     implementation 'com.facebook.react:react-native:+'  // From node_modules
 }
-
 def configureReactNativePom(def pom) {
     def packageJson = new groovy.json.JsonSlurper().parseText(file('../package.json').text)
-
     pom.project {
         name packageJson.title
         artifactId packageJson.name
@@ -87,7 +72,6 @@ def configureReactNativePom(def pom) {
         group = "com.gusparis.monthpicker"
         description packageJson.description
         url packageJson.repository.baseUrl
-
         licenses {
             license {
                 name packageJson.license
@@ -95,7 +79,6 @@ def configureReactNativePom(def pom) {
                 distribution 'repo'
             }
         }
-
         developers {
             developer {
                 id packageJson.author.username
@@ -104,37 +87,32 @@ def configureReactNativePom(def pom) {
         }
     }
 }
-
 afterEvaluate { project ->
     // some Gradle build hooks ref:
     // https://www.oreilly.com/library/view/gradle-beyond-the/9781449373801/ch03.html
     task androidJavadoc(type: Javadoc) {
         source = android.sourceSets.main.java.srcDirs
         classpath += files(android.bootClasspath)
-        classpath += files(project.getConfigurations().getByName('compile').asList())
+        project.getConfigurations().getByName('implementation').setCanBeResolved(true)
+        // classpath += files(project.getConfigurations().getByName('implementation').asList())
         include '**/*.java'
     }
-
     task androidJavadocJar(type: Jar, dependsOn: androidJavadoc) {
         classifier = 'javadoc'
         from androidJavadoc.destinationDir
     }
-
     task androidSourcesJar(type: Jar) {
         classifier = 'sources'
         from android.sourceSets.main.java.srcDirs
         include '**/*.java'
     }
-
     android.libraryVariants.all { variant ->
         def name = variant.name.capitalize()
         def javaCompileTask = variant.javaCompileProvider.get()
-
         task "jar${name}"(type: Jar, dependsOn: javaCompileTask) {
             from javaCompileTask.destinationDir
         }
     }
-
     artifacts {
         archives androidSourcesJar
         archives androidJavadocJar
@@ -142,10 +120,5 @@ afterEvaluate { project ->
 
     task installArchives(type: Upload) {
         configuration = configurations.archives
-        repositories.mavenDeployer {
-            // Deploy to react-native-event-bridge/maven, ready to publish to npm
-            repository url: "file://${projectDir}/../android/maven"
-            configureReactNativePom pom
-        }
     }
 }
